@@ -1,3 +1,3 @@
 # rx-bridge
 
-rxjs seamless api
+rxjs seamless api between browser, server, worker
