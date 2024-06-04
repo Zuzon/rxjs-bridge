@@ -2,9 +2,7 @@
   "name": "rx-bridge",
   "version": "0.1.1",
   "description": "rxjs seamless api",
-  "main": "build/main/index.js",
-  "typings": "build/main/index.d.ts",
-  "module": "build/module/index.js",
+  "main": "src/index.ts",
   "repository": "https://github.com/Zuzon/rx-bridge",
   "license": "MIT",
   "keywords": [],
@@ -74,6 +72,7 @@
     "ws": "8.17.0"
   },
   "files": [
+    "src",
     "build/main",
     "build/module",
     "!**/*.spec.*",
