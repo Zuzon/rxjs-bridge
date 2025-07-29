@@ -1,0 +1,36 @@
+{
+  "include" : [
+    "./src/**/*",
+    "vite.config.ts"
+  ],
+  "exclude" : [
+    "node_modules",
+    "lib"
+  ],
+  "compilerOptions" : {
+    "strictPropertyInitialization" : true,
+    "alwaysStrict" : true,
+    "noImplicitOverride" : true,
+    "noImplicitAny" : true,
+    "strictNullChecks" : true,
+    "allowJs" : true,
+    "target" : "es2021",
+    "declaration" : true,
+    "emitDeclarationOnly": true,
+    "module" : "NodeNext",
+    "moduleResolution" : "NodeNext",
+    "types" : [
+      "vite",
+      "node",
+    ],
+    "esModuleInterop" : true,
+    "forceConsistentCasingInFileNames" : true,
+    "strict" : true,
+    "skipLibCheck" : true,
+    "isolatedModules" : true,
+    "outDir" : "lib",
+    "verbatimModuleSyntax" : false,
+    "resolveJsonModule" : true,
+    "experimentalDecorators": true
+  }
+}
