@@ -24,7 +24,7 @@ import {
 } from './rxjsbridge';
 import { SocketHandler } from './socketHandler';
 import { IncomingMessage } from 'http';
-import { rxBridgeHealthMonitor } from './health.monitor';
+import { rxjsBridgeHealthMonitor } from './health.monitor';
 
 export class WebSocketHandler extends SocketHandler {
   private _ws!: WebSocket;
@@ -122,7 +122,7 @@ export function WebSocketHost(serviceName: string, wss: WebSocketServer) {
                     `method ${sig.msg.method} is not initialized`
                   );
                 }
-                rxBridgeHealthMonitor.addJoint({
+                rxjsBridgeHealthMonitor.addJoint({
                   id: sig.msg.id,
                   method: sig.msg.method,
                   service: serviceName,
@@ -132,7 +132,7 @@ export function WebSocketHost(serviceName: string, wss: WebSocketServer) {
                   .pipe(
                     tap({
                       complete: () => {
-                        rxBridgeHealthMonitor.removeJoint(
+                        rxjsBridgeHealthMonitor.removeJoint(
                           sig.msg.id,
                           'socket',
                           sig.msg.method
@@ -155,7 +155,7 @@ export function WebSocketHost(serviceName: string, wss: WebSocketServer) {
                       ]).pipe(
                         take(1),
                         tap(() => {
-                          rxBridgeHealthMonitor.removeJoint(
+                          rxjsBridgeHealthMonitor.removeJoint(
                             sig.msg.id,
                             'socket',
                             sig.msg.method

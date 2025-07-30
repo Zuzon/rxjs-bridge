@@ -77,4 +77,4 @@ export interface RxjsBridgeHealthStatus {
   };
 }
 
-export const rxBridgeHealthMonitor = new RxjsBridgeHealth();
+export const rxjsBridgeHealthMonitor = new RxjsBridgeHealth();

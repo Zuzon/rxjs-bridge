@@ -11,7 +11,7 @@ import {
   dematerialize,
 } from 'rxjs';
 import { RxjsBridge, RxjsBridgeMessage } from './rxjsbridge';
-import { rxBridgeHealthMonitor } from './health.monitor';
+import { rxjsBridgeHealthMonitor } from './health.monitor';
 const registeredServices: string[] = [];
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 export function WorkerMethod<Args extends any[]>(
@@ -23,19 +23,12 @@ export function WorkerMethod<Args extends any[]>(
   descriptor.value = function (...args: Args) {
     return new Observable((observer) => {
       const packetId = target._packetId++;
-      target._worker.postMessage({
-        id: packetId,
-        data: args,
-        method,
-        service: target._serviceName,
-      } as RxjsBridgeMessage);
       target._output
         .pipe(
           filter(
             (msg) =>
               msg.id === packetId &&
               msg.method === method &&
-              !msg.complete &&
               msg.service === target._serviceName
           ),
           map((msg) => msg.data),
@@ -46,6 +39,13 @@ export function WorkerMethod<Args extends any[]>(
           error: (err) => observer.error(err),
           complete: () => observer.complete(),
         });
+      target._worker.postMessage({
+        id: packetId,
+        data: args,
+        method,
+        service: target._serviceName,
+      } as RxjsBridgeMessage);
+      
       return () => {
         target._worker.postMessage({
           id: packetId,
@@ -105,7 +105,7 @@ export function WorkerHost(serviceName: string) {
           console.warn('addEventListener is not available in this environment');
           return;
         }
-        addEventListener('message', (event) => {
+        global.addEventListener('message', (event) => {
           const msg = event.data as RxjsBridgeMessage;
           if (msg.service !== serviceName) {
             return;
@@ -131,7 +131,7 @@ export function WorkerHost(serviceName: string) {
               if (obs === undefined) {
                 throw new Error(`method ${msg.method} is not initialized`);
               }
-              rxBridgeHealthMonitor.addJoint({
+              rxjsBridgeHealthMonitor.addJoint({
                 id: msg.id,
                 method: msg.method,
                 service: serviceName,
@@ -144,7 +144,7 @@ export function WorkerHost(serviceName: string) {
                       filter((m) => m.id === msg.id && m.complete),
                       take(1),
                       tap(() => {
-                        rxBridgeHealthMonitor.removeJoint(
+                        rxjsBridgeHealthMonitor.removeJoint(
                           msg.id,
                           'worker',
                           msg.method
@@ -164,7 +164,7 @@ export function WorkerHost(serviceName: string) {
                         )
                       );
                     }
-                    postMessage({
+                    global.postMessage({
                       id: msg.id,
                       method: msg.method,
                       data,
@@ -173,12 +173,12 @@ export function WorkerHost(serviceName: string) {
                     } as RxjsBridgeMessage);
                   },
                   complete: () => {
-                    rxBridgeHealthMonitor.removeJoint(
+                    rxjsBridgeHealthMonitor.removeJoint(
                       msg.id,
                       'worker',
                       msg.method
                     );
-                    postMessage({
+                    global.postMessage({
                       id: msg.id,
                       method: msg.method,
                       complete: true,
