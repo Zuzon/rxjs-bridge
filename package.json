@@ -21,11 +21,6 @@
     "webworker",
     "websocket"
   ],
-  "publishConfig": {
-    "registry": "https://npm.pkg.github.com",
-    "access": "public",
-    "provenance": true
-  },
   "author": "Aigars Zeiza (Zuzon)",
   "license": "MIT",
   "bugs": {
