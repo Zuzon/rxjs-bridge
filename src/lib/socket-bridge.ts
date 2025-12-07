@@ -125,6 +125,7 @@ export function WebSocketHost(serviceName: string, wss: WebSocketServer) {
                 rxjsBridgeHealthMonitor.addJoint({
                   id: sig.msg.id,
                   method: sig.msg.method,
+                  property: sig.msg.property,
                   service: serviceName,
                   type: 'socket',
                 });
@@ -135,7 +136,6 @@ export function WebSocketHost(serviceName: string, wss: WebSocketServer) {
                         rxjsBridgeHealthMonitor.removeJoint(
                           sig.msg.id,
                           'socket',
-                          sig.msg.method
                         );
                       },
                     }),
@@ -158,7 +158,6 @@ export function WebSocketHost(serviceName: string, wss: WebSocketServer) {
                           rxjsBridgeHealthMonitor.removeJoint(
                             sig.msg.id,
                             'socket',
-                            sig.msg.method
                           );
                         })
                       )
@@ -179,6 +178,7 @@ export function WebSocketHost(serviceName: string, wss: WebSocketServer) {
                         JSON.stringify({
                           id: sig.msg.id,
                           method: sig.msg.method,
+                          property: sig.msg.property,
                           data,
                           complete: false,
                           service: serviceName,

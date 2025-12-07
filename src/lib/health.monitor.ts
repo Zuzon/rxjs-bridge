@@ -5,7 +5,7 @@ class RxjsBridgeHealth {
     this._activeJoints.push(joint);
   }
 
-  public removeJoint(id: number, type: 'socket' | 'worker', method: string) {
+  public removeJoint(id: number, type: 'socket' | 'worker') {
     const joint = this._activeJoints.find((j) => j.id === id && j.type === type);
     if (joint) {
       this._activeJoints.splice(this._activeJoints.indexOf(joint), 1);
@@ -58,6 +58,7 @@ export interface RxjsBridgeJoint {
   type: 'socket' | 'worker';
   service: string;
   method: string;
+  property: string;
   id: number;
 }
 
