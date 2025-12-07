@@ -185,7 +185,6 @@ export function WorkerBridge(worker: Worker, serviceName: string) {
           }
           _output.next(msg);
         };
-        console.log("worker host, adding listener", serviceName);
         worker.addEventListener("message", listener);
         interval(100)
           .pipe(
