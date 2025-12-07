@@ -1,4 +1,4 @@
-import { Subject, Observable, BehaviorSubject } from "rxjs";
+import { Subject, Observable, BehaviorSubject, OperatorFunction } from "rxjs";
 import { WebSocket } from 'ws';
 import type { SocketHandler } from "./socketHandler";
 
@@ -9,7 +9,7 @@ export class RxjsBridge {
   public _packetId = 0;
   public _serviceName!: string;
   public _bridgedMethods!: string[];
-  public _bridgedProperties!: string[];
+  public _bridgedProperties!: bridgedProp[];
   public _bridgeConnected!: BehaviorSubject<boolean>;
 }
 
@@ -33,4 +33,10 @@ export interface WsRxSignal {
 export interface RxjsBridgeObservable<T> {
   argsJson: string;
   observable: Observable<T>;
+}
+
+export interface bridgedProp {
+  key: string;
+  operators: OperatorFunction<any, any>[];
+  observable: Observable<unknown>;
 }

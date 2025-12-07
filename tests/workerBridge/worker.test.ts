@@ -201,10 +201,10 @@ describe("Worker bridge", () => {
       const service = new WorkerBridgeNonExistentServiceMock();
       setTimeout(() => {
         resolve();
-      }, 100);
+      }, 5100);
     });
     process.off("uncaughtException", handler);
     expect(errors).toHaveLength(1);
     expect(errors[0]).toBe("service non-existent is not connected");
-  });
+  }, 5200);
 });

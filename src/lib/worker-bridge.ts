@@ -16,8 +16,9 @@ import {
   switchMap,
   timeout,
   catchError,
+  of,
 } from "rxjs";
-import { RxjsBridge, RxjsBridgeMessage } from "./rxjsbridge";
+import { bridgedProp, RxjsBridge, RxjsBridgeMessage } from "./rxjsbridge";
 import { rxjsBridgeHealthMonitor } from "./health.monitor";
 import { initRxBridgeProps } from "./utils";
 const registeredServices: string[] = [];
@@ -88,7 +89,11 @@ export function WorkerMethod() {
 export function WorkerObservable(...args: OperatorFunction<any, any>[]) {
   return function (target: RxjsBridge, propertyKey: string) {
     initRxBridgeProps(target);
-    target._bridgedProperties.push(propertyKey);
+    const prop: bridgedProp = {
+      key: propertyKey,
+      operators: args,
+      observable: of()
+    }
     let obs = new Observable((observer) => {
       const packetId = target._packetId++;
       target._output
@@ -121,7 +126,6 @@ export function WorkerObservable(...args: OperatorFunction<any, any>[]) {
         .subscribe(() => {
           target._worker.postMessage({
             id: packetId,
-            data: args,
             property: propertyKey,
             service: target._serviceName,
           } as RxjsBridgeMessage);
@@ -139,14 +143,8 @@ export function WorkerObservable(...args: OperatorFunction<any, any>[]) {
     if (args && args.length > 0) {
       obs = obs.pipe(...(args as []));
     }
-    // eslint-disable-next-line @typescript-eslint/ban-ts-comment
-    // @ts-ignore
-    target[propertyKey] = obs;
-    // Object.defineProperty(target, propertyKey, {
-    //   get: () => {
-    //     return obs;
-    //   },
-    // });
+    prop.observable = obs;
+    target._bridgedProperties.push(prop);
   };
 }
 
@@ -165,6 +163,11 @@ export function WorkerBridge(worker: Worker, serviceName: string) {
         constructor.prototype._output = _output.pipe(
           share({ resetOnRefCountZero: true })
         );
+        constructor.prototype._bridgedProperties.map((p: bridgedProp) => {
+          // eslint-disable-next-line @typescript-eslint/ban-ts-comment
+          // @ts-ignore
+          this[p.key] = p.observable;
+        });
         const listener = (ev: MessageEvent) => {
           const msg = ev.data as RxjsBridgeMessage;
           if (msg.service !== serviceName) {
@@ -177,9 +180,9 @@ export function WorkerBridge(worker: Worker, serviceName: string) {
                 return;
               }
             });
-            constructor.prototype._bridgedProperties.map((p: string) => {
-              if (!(msg.data.properties as string[]).includes(p)) {
-                constructor.prototype._bridgeConnected.error(new Error(`Property ${p} is not supported by service: ${serviceName}`));
+            constructor.prototype._bridgedProperties.map((p: bridgedProp) => {
+              if (!(msg.data.properties as string[]).includes(p.key)) {
+                constructor.prototype._bridgeConnected.error(new Error(`Property ${p.key} is not supported by service: ${serviceName}`));
                 return;
               }
             });
@@ -196,7 +199,7 @@ export function WorkerBridge(worker: Worker, serviceName: string) {
               (constructor.prototype as RxjsBridge)._bridgeConnected.pipe(
                 filter((c) => c),
                 take(1),
-                timeout(50),
+                timeout(5000),
                 catchError((err) => {
                   if (err.message.includes("Timeout")) {
                     throw new Error(`service ${serviceName} is not connected`);
