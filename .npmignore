@@ -1,4 +1,5 @@
 node_modules
+.github
 tests
 src
 vite-plugin-force-terser.js
