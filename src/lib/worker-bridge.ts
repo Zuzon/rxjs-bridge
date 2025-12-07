@@ -238,7 +238,7 @@ export function WorkerHost(serviceName: string) {
           console.warn("addEventListener is not available in this environment", serviceName);
           return;
         }
-        global.addEventListener("message", (event) => {
+        addEventListener("message", (event) => {
           const msg = event.data as RxjsBridgeMessage;
 
           if (msg.service !== serviceName) {
@@ -246,7 +246,7 @@ export function WorkerHost(serviceName: string) {
           }
           if (msg.id === -1) {
             constructor.prototype._bridgeConnected.next(true);
-            global.postMessage({
+            postMessage({
               id: msg.id,
               data: {
                 properties: Object.getOwnPropertyNames(this),
@@ -268,7 +268,7 @@ export function WorkerHost(serviceName: string) {
             filter((msg) => !msg.complete),
             tap((msg) => {
               if (msg.isCheck) {
-                global.postMessage({
+                postMessage({
                   id: msg.id,
                   method: msg.method,
                   property: msg.property,
@@ -299,7 +299,7 @@ export function WorkerHost(serviceName: string) {
                   const errJson = JSON.parse(
                     JSON.stringify(err, Object.getOwnPropertyNames(err))
                   );
-                  global.postMessage({
+                  postMessage({
                     id: msg.id,
                     method: msg.method,
                     property: msg.property,
@@ -354,7 +354,7 @@ export function WorkerHost(serviceName: string) {
                         )
                       );
                     }
-                    global.postMessage({
+                    postMessage({
                       id: msg.id,
                       method: msg.method,
                       property: msg.property,
@@ -365,7 +365,7 @@ export function WorkerHost(serviceName: string) {
                   },
                   complete: () => {
                     rxjsBridgeHealthMonitor.removeJoint(msg.id, "worker");
-                    global.postMessage({
+                    postMessage({
                       id: msg.id,
                       method: msg.method,
                       property: msg.property,
