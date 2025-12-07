@@ -1,6 +1,6 @@
 {
   "name": "rxjs-bridge",
-  "version": "0.1.1",
+  "version": "0.1.2",
   "description": "rxjs-bridge is a typescript library designed to use rxjs observables between browser, webworker and websockets seamlessly.",
   "main": "lib/rxjs-bridge.es.js",
   "types": "lib/src/index.d.ts",
