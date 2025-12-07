@@ -139,11 +139,14 @@ export function WorkerObservable(...args: OperatorFunction<any, any>[]) {
     if (args && args.length > 0) {
       obs = obs.pipe(...(args as []));
     }
-    Object.defineProperty(target, propertyKey, {
-      get: () => {
-        return obs;
-      },
-    });
+    // eslint-disable-next-line @typescript-eslint/ban-ts-comment
+    // @ts-ignore
+    target[propertyKey] = obs;
+    // Object.defineProperty(target, propertyKey, {
+    //   get: () => {
+    //     return obs;
+    //   },
+    // });
   };
 }
 
