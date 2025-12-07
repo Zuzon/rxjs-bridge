@@ -8,7 +8,8 @@
     "test": "vitest run --reporter=verbose",
     "build": "vite build --mode production && npm run dts",
     "dts": "tsc --build tsconfig.json",
-    "clean": "rm -rf ./lib"
+    "clean": "rm -rf ./lib",
+    "postversion": "git push && git push --tags"
   },
   "repository": {
     "type": "git",
