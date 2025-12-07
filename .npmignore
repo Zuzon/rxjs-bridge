@@ -1,0 +1,5 @@
+node_modules
+tests
+vite-plugin-force-terser.js
+vite.config.mts
+vitest.config.tests
