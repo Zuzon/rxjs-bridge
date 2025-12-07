@@ -26,6 +26,13 @@ jobs:
       - run: npm ci
       - run: npm run build
       - run: npm run test
+      - name: Configure npm auth
+        run: |
+          # Write NPM token to ~/.npmrc so npm publish can authenticate
+          echo "//registry.npmjs.org/:_authToken=${{ secrets.NPM_TOKEN }}" > ~/.npmrc
+          # Optional: show whoami for debugging (non-fatal)
+          npm whoami || true
+
       - run: npm publish --provenance --access public
         env:
           NPM_CONFIG_TOKEN: ${{ secrets.GITHUB_TOKEN }}
