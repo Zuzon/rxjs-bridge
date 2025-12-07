@@ -27,3 +27,5 @@ jobs:
       - run: npm run build
       - run: npm run test
       - run: npm publish --provenance --access public
+        env:
+          NPM_CONFIG_TOKEN: ${{ secrets.GITHUB_TOKEN }}
