@@ -13,7 +13,6 @@ import {
   interval,
   BehaviorSubject,
   startWith,
-  switchMap,
   timeout,
   catchError,
   of,
@@ -22,7 +21,6 @@ import { bridgedProp, RxjsBridge, RxjsBridgeMessage } from "./rxjsbridge";
 import { rxjsBridgeHealthMonitor } from "./health.monitor";
 import { initRxBridgeProps } from "./utils";
 const registeredServices: string[] = [];
-export const BRIDGE_OBSERVABLE = new Observable<any>();
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 export function WorkerMethod() {
   return function <Args extends any[]>(
@@ -80,7 +78,7 @@ export function WorkerMethod() {
             service: target._serviceName,
           } as RxjsBridgeMessage);
         };
-      }).pipe();
+      });
     };
     return descriptor;
   };
@@ -92,8 +90,8 @@ export function WorkerObservable(...args: OperatorFunction<any, any>[]) {
     const prop: bridgedProp = {
       key: propertyKey,
       operators: args,
-      observable: of()
-    }
+      observable: of(),
+    };
     let obs = new Observable((observer) => {
       const packetId = target._packetId++;
       target._output
@@ -176,13 +174,21 @@ export function WorkerBridge(worker: Worker, serviceName: string) {
           if (msg.id === -1) {
             constructor.prototype._bridgedMethods.map((m: string) => {
               if (!(msg.data.methods as string[]).includes(m)) {
-                constructor.prototype._bridgeConnected.error(new Error(`Method ${m} is not supported by service: ${serviceName}`));
+                constructor.prototype._bridgeConnected.error(
+                  new Error(
+                    `Method ${m} is not supported by service: ${serviceName}`
+                  )
+                );
                 return;
               }
             });
             constructor.prototype._bridgedProperties.map((p: bridgedProp) => {
               if (!(msg.data.properties as string[]).includes(p.key)) {
-                constructor.prototype._bridgeConnected.error(new Error(`Property ${p.key} is not supported by service: ${serviceName}`));
+                constructor.prototype._bridgeConnected.error(
+                  new Error(
+                    `Property ${p.key} is not supported by service: ${serviceName}`
+                  )
+                );
                 return;
               }
             });
@@ -228,9 +234,6 @@ export function WorkerHost(serviceName: string) {
   ): T | void {
     return class extends constructor {
       constructor(...args: any[]) {
-        constructor.prototype._bridgeConnected = new BehaviorSubject<boolean>(
-          false
-        );
         if (registeredServices.includes(serviceName)) {
           console.warn(`service ${serviceName} already registered`);
           super(...args);
@@ -241,7 +244,10 @@ export function WorkerHost(serviceName: string) {
         const input$ = _input$.pipe(share({ resetOnRefCountZero: true }));
         if (typeof addEventListener === "undefined") {
           super(...args);
-          console.warn("addEventListener is not available in this environment", serviceName);
+          console.warn(
+            "addEventListener is not available in this environment",
+            serviceName
+          );
           return;
         }
         addEventListener("message", (event) => {
@@ -251,7 +257,6 @@ export function WorkerHost(serviceName: string) {
             return;
           }
           if (msg.id === -1) {
-            constructor.prototype._bridgeConnected.next(true);
             postMessage({
               id: msg.id,
               data: {
@@ -287,13 +292,6 @@ export function WorkerHost(serviceName: string) {
                 } as RxjsBridgeMessage);
                 return;
               }
-              // eslint-disable-next-line @typescript-eslint/ban-ts-comment
-              // @ts-ignore
-              if (!this[msg.method] && !this[msg.property]) {
-                throw new Error(
-                  `method:"${msg.method}" or property:"${msg.property}" does not exist in host service:"${serviceName}"`
-                );
-              }
               // eslint-disable-next-line @typescript-eslint/no-explicit-any, @typescript-eslint/ban-types
               let obs: Observable<any>;
               if (msg.method) {
@@ -318,16 +316,10 @@ export function WorkerHost(serviceName: string) {
                   } as RxjsBridgeMessage);
                   return;
                 }
-              } else if (msg.property) {
+              } else {
                 // eslint-disable-next-line @typescript-eslint/ban-ts-comment
                 // @ts-ignore
                 obs = this[msg.property];
-              } else {
-                throw new Error(`non existing API`);
-              }
-
-              if (obs === undefined) {
-                throw new Error(`method ${msg.method} is not initialized`);
               }
 
               rxjsBridgeHealthMonitor.addJoint({

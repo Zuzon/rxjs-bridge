@@ -37,6 +37,7 @@
     "@types/node": "^22.15.3",
     "@types/ws": "^8.18.1",
     "@typescript-eslint/eslint-plugin": "^8.31.1",
+    "@vitest/coverage-v8": "^4.0.15",
     "@vitest/web-worker": "^4.0.15",
     "clean-jsdoc-theme": "^4.3.0",
     "eslint": "^9.25.1",

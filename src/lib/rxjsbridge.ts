@@ -30,11 +30,6 @@ export interface WsRxSignal {
   address: string;
 }
 
-export interface RxjsBridgeObservable<T> {
-  argsJson: string;
-  observable: Observable<T>;
-}
-
 export interface bridgedProp {
   key: string;
   operators: OperatorFunction<any, any>[];
