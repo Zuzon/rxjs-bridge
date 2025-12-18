@@ -1,6 +1,78 @@
 # rxjs-bridge
 
-seamless observables between browser, server, worker.
+**rxjs-bridge** lets you use RxJS Observables across execution boundaries as if they were local.
+
+It transparently bridges Observables between:
+
+- Web Workers ↔ UI thread
+
+- Node.js servers ↔ clients (via WebSockets)
+
+You can create Observables in a worker or on a server and subscribe to them from the UI thread or a remote client without changing how you write RxJS code.
+
+##### What it solves
+
+RxJS works great inside a single runtime, but breaks down when you need to:
+
+- Move heavy logic into a Web Worker
+
+- Stream reactive data from a Node.js backend
+
+- Share reactive state across threads or processes
+
+Normally this requires:
+
+- Manual message passing
+
+- Custom protocols
+
+- Boilerplate serialization logic
+
+- Re-implementing unsubscribe, errors, and completion
+
+rxjs-bridge removes all of that.
+
+#### How it works
+
+- Observables are proxied across boundaries
+
+- next, error, complete, and unsubscribe are forwarded automatically
+
+- Subscriptions stay synchronized on both sides
+
+- Transport-agnostic (postMessage, WebSocket, etc.)
+
+From the consumer’s perspective, it’s just an RxJS Observable.
+
+#### Key features
+
+- Seamless Observable usage across threads and processes
+
+- Full RxJS semantics preserved (next, error, complete, teardown)
+
+- Works with Web Workers and Node.js over WebSockets
+
+- No RxJS API changes required
+
+- Minimal boilerplate
+
+- Designed for high-frequency streams
+
+#### Example use cases
+
+- Heavy data processing in a Web Worker, streamed reactively to the UI
+
+- Real-time server state exposed as Observables to clients
+
+- Shared reactive models between frontend and backend
+
+- Offloading sensor, video, or telemetry processing without breaking reactivity
+
+#### Philosophy
+
+> If it’s an Observable there, it should behave like an Observable here.
+
+rxjs-bridge treats execution boundaries as an implementation detail, not an architectural limitation.
 
 ## Installation
 
