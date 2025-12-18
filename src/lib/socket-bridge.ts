@@ -370,7 +370,17 @@ export function SocketMethod() {
             switchMap(() => target._output),
             takeUntil(
               race([
-                target._sh.disconnected$,
+                new Observable((observer) => {
+                  if (target._sh) {
+                    target._sh.disconnected$.pipe(take(1)).subscribe({
+                      next: observer.next,
+                      error: observer.error,
+                      complete: observer.complete
+                    });
+                    return;
+                  }
+                  throw new Error("SocketHandler not initialized");
+                }),
                 target._output.pipe(
                   filter(
                     (msg) =>
