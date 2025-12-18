@@ -4,13 +4,13 @@
 
 It transparently bridges Observables between:
 
-- Web Workers ↔ UI thread
+- **Web Workers ↔ UI thread**
 
-- Node.js servers ↔ clients (via WebSockets)
+- **Node.js servers ↔ clients (via WebSockets)**
 
 You can create Observables in a worker or on a server and subscribe to them from the UI thread or a remote client without changing how you write RxJS code.
 
-##### What it solves
+### What it solves
 
 RxJS works great inside a single runtime, but breaks down when you need to:
 
@@ -30,9 +30,9 @@ Normally this requires:
 
 - Re-implementing unsubscribe, errors, and completion
 
-rxjs-bridge removes all of that.
+**rxjs-bridge removes all of that.**
 
-#### How it works
+### How it works
 
 - Observables are proxied across boundaries
 
@@ -44,7 +44,7 @@ rxjs-bridge removes all of that.
 
 From the consumer’s perspective, it’s just an RxJS Observable.
 
-#### Key features
+### Key features
 
 - Seamless Observable usage across threads and processes
 
@@ -52,13 +52,15 @@ From the consumer’s perspective, it’s just an RxJS Observable.
 
 - Works with Web Workers and Node.js over WebSockets
 
+- **Zero dependencies** (besides RxJS itself)
+
 - No RxJS API changes required
 
 - Minimal boilerplate
 
 - Designed for high-frequency streams
 
-#### Example use cases
+### Example use cases
 
 - Heavy data processing in a Web Worker, streamed reactively to the UI
 
@@ -68,7 +70,7 @@ From the consumer’s perspective, it’s just an RxJS Observable.
 
 - Offloading sensor, video, or telemetry processing without breaking reactivity
 
-#### Philosophy
+### Philosophy
 
 > If it’s an Observable there, it should behave like an Observable here.
 
