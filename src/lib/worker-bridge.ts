@@ -11,11 +11,11 @@ import {
   dematerialize,
   OperatorFunction,
   interval,
-  BehaviorSubject,
   startWith,
   timeout,
   catchError,
   of,
+  switchMap,
 } from "rxjs";
 import { bridgedProp, RxjsBridge, RxjsBridgeMessage } from "./rxjsbridge";
 import { rxjsBridgeHealthMonitor } from "./health.monitor";
@@ -34,8 +34,11 @@ export function WorkerMethod() {
     descriptor.value = function (...args: Args) {
       return new Observable((observer) => {
         const packetId = target._packetId++;
-        const res = target._output
+        const res = target._bridgeConnected
           .pipe(
+            filter((c) => c),
+            take(1),
+            switchMap(() => target._output),
             filter(
               (msg) =>
                 msg.id === packetId &&
@@ -54,6 +57,7 @@ export function WorkerMethod() {
               observer.complete();
             },
           });
+
         target._bridgeConnected
           .pipe(
             filter((c) => c),
@@ -94,8 +98,11 @@ export function WorkerObservable(...args: OperatorFunction<any, any>[]) {
     };
     let obs = new Observable((observer) => {
       const packetId = target._packetId++;
-      target._output
+      target._bridgeConnected
         .pipe(
+          filter((c) => c),
+          take(1),
+          switchMap(() => target._output),
           filter(
             (msg) =>
               msg.id === packetId &&
@@ -116,6 +123,7 @@ export function WorkerObservable(...args: OperatorFunction<any, any>[]) {
             observer.complete();
           },
         });
+
       target._bridgeConnected
         .pipe(
           filter((c) => c),

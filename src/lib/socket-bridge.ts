@@ -362,8 +362,12 @@ export function SocketMethod() {
       const done$ = new Subject<void>();
       return new Observable((observer) => {
         const packetId = target._packetId++;
-        target._output
+
+        target._bridgeConnected
           .pipe(
+            filter((c) => c),
+            take(1),
+            switchMap(() => target._output),
             takeUntil(
               race([
                 target._sh.disconnected$,
@@ -448,8 +452,11 @@ export function SocketObservable(...args: OperatorFunction<any, any>[]) {
     const done$ = new Subject<void>();
     let obs = new Observable((observer) => {
       const packetId = target._packetId++;
-      target._output
+      target._bridgeConnected
         .pipe(
+          filter((c) => c),
+          take(1),
+          switchMap(() => target._output),
           filter(
             (msg) =>
               msg.id === packetId &&
