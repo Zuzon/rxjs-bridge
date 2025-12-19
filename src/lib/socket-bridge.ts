@@ -14,6 +14,7 @@ import {
   race,
   share,
   shareReplay,
+  skip,
   startWith,
   switchMap,
   take,
@@ -37,14 +38,10 @@ const registeredServices: string[] = [];
 export class WebSocketHandler extends SocketHandler {
   private _ws!: WebSocket;
   private _input$ = new Subject<RxjsBridgeMessage>();
-  private _disconnect$ = new Subject<void>();
   private _connected$ = new BehaviorSubject<boolean>(false);
   private _started = false;
 
   public output$ = this._input$.pipe(share({ resetOnRefCountZero: true }));
-  public disconnected$ = this._disconnect$.pipe(
-    share({ resetOnRefCountZero: true })
-  );
   public connected$ = this._connected$.pipe(shareReplay(1));
 
   constructor(private address: string) {
@@ -60,7 +57,7 @@ export class WebSocketHandler extends SocketHandler {
       this._connected$.next(true);
     };
     this._ws.addEventListener("close", () => {
-      this._disconnect$.next();
+      this._connected$.next(false);
       setTimeout(() => {
         this.connect();
       }, 500);
@@ -70,6 +67,10 @@ export class WebSocketHandler extends SocketHandler {
     });
   }
   private _send(msg: RxjsBridgeMessage): void {
+    if (this._ws.readyState !== WebSocket.OPEN) {
+      this._connected$.next(false);
+      return;
+    }
     try {
       this._ws.send(JSON.stringify(msg));
     } catch (ex) {
@@ -370,17 +371,12 @@ export function SocketMethod() {
             switchMap(() => target._output),
             takeUntil(
               race([
-                new Observable((observer) => {
-                  if (target._sh) {
-                    target._sh.disconnected$.pipe(take(1)).subscribe({
-                      next: observer.next,
-                      error: observer.error,
-                      complete: observer.complete
-                    });
-                    return;
-                  }
-                  throw new Error("SocketHandler not initialized");
-                }),
+                target._sh.connected$.pipe(
+                  distinctUntilChanged(),
+                  filter((c) => !c),
+                  skip(1),
+                  take(1)
+                ),
                 target._output.pipe(
                   filter(
                     (msg) =>
