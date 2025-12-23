@@ -1,7 +1,16 @@
 import { describe, it, expect, vi } from "vitest";
 import { rxjsBridgeHealthMonitor } from "../../src";
-import { FirstTestServiceHost, SocketHostSecondServiceMock, SocketHostThirdServiceMock } from "./mock/host.mock";
-import { FirstTestServiceBridge, SocketBridgeNonExistentServiceMock, SocketBridgeSecondServiceMock, SocketBridgeThirdServiceMock } from "./mock/bridge.mock";
+import {
+  FirstTestServiceHost,
+  SocketHostSecondServiceMock,
+  SocketHostThirdServiceMock,
+} from "./mock/host.mock";
+import {
+  FirstTestServiceBridge,
+  SocketBridgeNonExistentServiceMock,
+  SocketBridgeSecondServiceMock,
+  SocketBridgeThirdServiceMock,
+} from "./mock/bridge.mock";
 import { take } from "rxjs";
 
 describe("Socket bridge", () => {
@@ -16,12 +25,16 @@ describe("Socket bridge", () => {
     await new Promise<void>((resolve) => {
       const host = new SocketHostThirdServiceMock();
       const service = new SocketBridgeThirdServiceMock();
-      setTimeout(() => {resolve(); }, 50);
+      setTimeout(() => {
+        resolve();
+      }, 50);
     });
     process.off("uncaughtException", handler);
     console.log("should fail if non-existing property contains", errors);
     expect(errors).toHaveLength(1);
-    expect(errors[0]).toBe('Property nonExistentSubject$ is not supported by service: third');
+    expect(errors[0]).toBe(
+      "Property nonExistentSubject$ is not supported by service: third"
+    );
   });
   it.skip("should fail if non-existing method contains", async () => {
     const errors: string[] = [];
@@ -42,7 +55,7 @@ describe("Socket bridge", () => {
       "Method nonExistent is not supported by service: second"
     );
   });
-  
+
   it("Should just complete", async () => {
     await new Promise<void>((resolve) => {
       const handler = {
@@ -83,13 +96,13 @@ describe("Socket bridge", () => {
     await new Promise<void>(async (resolve) => {
       const subsription1 = firstBridge.longRunningOne().subscribe();
       const subsription2 = firstBridge.longRunningOne().subscribe();
-      await new Promise((resolve) => setTimeout(resolve, 10));
+      await new Promise((resolve) => setTimeout(resolve, 50));
       expect(rxjsBridgeHealthMonitor.checkHealth().socketJointAmount).toBe(2);
       subsription1.unsubscribe();
-      await new Promise((resolve) => setTimeout(resolve, 10));
+      await new Promise((resolve) => setTimeout(resolve, 50));
       expect(rxjsBridgeHealthMonitor.checkHealth().socketJointAmount).toBe(1);
       subsription2.unsubscribe();
-      await new Promise((resolve) => setTimeout(resolve, 10));
+      await new Promise((resolve) => setTimeout(resolve, 50));
       expect(rxjsBridgeHealthMonitor.checkHealth().socketJointAmount).toBe(0);
       resolve();
     });

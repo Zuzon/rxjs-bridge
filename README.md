@@ -1,5 +1,9 @@
 # rxjs-bridge
 
+![NPM Version](https://img.shields.io/npm/v/rxjs-bridge) ![NPM License](https://img.shields.io/npm/l/rxjs-bridge)
+
+
+
 **rxjs-bridge** lets you use RxJS Observables across execution boundaries as if they were local.
 
 It transparently bridges Observables between:

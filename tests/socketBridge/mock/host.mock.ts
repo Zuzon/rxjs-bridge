@@ -1,9 +1,9 @@
-import { interval, Observable, of, share, Subject, throwError, timer } from "rxjs";
+import { interval, Observable, of, share, Subject, take, throwError, timer } from "rxjs";
 import { FirstTestServiceBase } from "./api.interface";
 import { RxjsBridge, WebSocketHost } from "../../../src";
-import { wsServer } from "./hostSocket";
+import { hostSocketHandler } from "./hostSocket";
 
-@WebSocketHost('first', wsServer)
+@WebSocketHost('first', hostSocketHandler)
 export class FirstTestServiceHost extends FirstTestServiceBase {
   override multiValuesShared$: Observable<number> = of(1, 2);
   override internalBrokenMethod(): Observable<any> {
@@ -21,7 +21,7 @@ export class FirstTestServiceHost extends FirstTestServiceBase {
   override sharedOne(): Observable<any> {
     return this._sharedSubject;
   }
-  public longRunningSubject = timer(10000);
+  public longRunningSubject = interval(100).pipe(take(100));
   public longRunningOne(): Observable<any> {
     return this.longRunningSubject;
   }
@@ -40,14 +40,14 @@ export class FirstTestServiceHost extends FirstTestServiceBase {
   }
 }
 
-@WebSocketHost('second', wsServer)
+@WebSocketHost('second', hostSocketHandler)
 export class SocketHostSecondServiceMock extends RxjsBridge {
   public subject(): Observable<any> {
     return of(true);
   }
 }
 
-@WebSocketHost('third', wsServer)
+@WebSocketHost('third', hostSocketHandler)
 export class SocketHostThirdServiceMock extends RxjsBridge {
 
 }

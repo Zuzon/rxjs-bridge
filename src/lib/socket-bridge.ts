@@ -22,7 +22,6 @@ import {
   tap,
   timeout,
 } from "rxjs";
-import { RawData, WebSocket as NodeWebSocket, WebSocketServer } from "ws";
 import {
   bridgedProp,
   RxjsBridge,
@@ -30,11 +29,10 @@ import {
   WsRxSignal,
 } from "./rxjsbridge";
 import { SocketHandler } from "./socketHandler";
-import { IncomingMessage } from "http";
 import { rxjsBridgeHealthMonitor } from "./health.monitor";
 import { initRxBridgeProps } from "./utils";
+import { ClientConnection, IHostSocketHandler } from "./IhostSocketHandler";
 
-const registeredServices: string[] = [];
 export class WebSocketHandler extends SocketHandler {
   private _ws!: WebSocket;
   private _input$ = new Subject<RxjsBridgeMessage>();
@@ -91,61 +89,68 @@ export class WebSocketHandler extends SocketHandler {
   }
 }
 
-export function WebSocketHost(serviceName: string, wss: WebSocketServer) {
+export function WebSocketHost(serviceName: string, sh: IHostSocketHandler) {
   // eslint-disable-next-line @typescript-eslint/no-explicit-any, @typescript-eslint/ban-types
   return function <T extends { new (...args: any[]): {} }>(
     constructor: T
   ): T | void {
     return class extends constructor {
       constructor(...args: any[]) {
-        if (registeredServices.includes(serviceName)) {
+        if (sh.registeredServices.includes(serviceName)) {
           console.warn(`service ${serviceName} already registered`);
           super(...args);
           return;
         }
-        registeredServices.push(serviceName);
-        wss.on("connection", (socket: NodeWebSocket, req: IncomingMessage) => {
+        sh.registeredServices.push(serviceName);
+        const clientConnectionHandler = (client: ClientConnection) => {
           const _input$ = new Subject<WsRxSignal>();
-          const input$ = _input$.pipe(share({ resetOnRefCountZero: true }));
-          const onClose = new Subject<void>();
-          socket.on("error", () => {
-            onClose.next();
-          });
-          socket.on("close", () => {
-            onClose.next();
-          });
-          socket.on("message", (data: RawData) => {
-            const msg = JSON.parse(data.toString()) as RxjsBridgeMessage;
+          const input$ = _input$.pipe(
+            share({ resetOnRefCountZero: true }),
+            takeUntil(client.onClose$)
+          );
+          const bridgeMessageHandler = (msg: RxjsBridgeMessage) => {
             if (msg.service !== serviceName) {
               return;
             }
             if (msg.id === -1) {
-              socket.send(
-                JSON.stringify({
-                  id: msg.id,
-                  data: {
-                    properties: Object.getOwnPropertyNames(this),
-                    methods: Object.getOwnPropertyNames(
-                      constructor.prototype
-                    ).filter(
-                      (p) => !["constructor", "_bridgeConnected"].includes(p)
-                    ),
-                  },
-                  complete: true,
-                  service: serviceName,
-                })
-              );
+              sh.hasAccessTo(client.req, {
+                serviceName,
+              })
+                .pipe(take(1))
+                .subscribe((hasAccess) => {
+                  if (!hasAccess) {
+                    return;
+                  }
+                  client.socket.send(
+                    JSON.stringify({
+                      id: msg.id,
+                      data: {
+                        properties: Object.getOwnPropertyNames(this),
+                        methods: Object.getOwnPropertyNames(
+                          constructor.prototype
+                        ).filter(
+                          (p) =>
+                            !["constructor", "_bridgeConnected"].includes(p)
+                        ),
+                      },
+                      complete: true,
+                      service: serviceName,
+                    })
+                  );
+                });
               return;
             }
             _input$.next({
-              client: socket,
+              client: client.socket,
               msg,
-              address: req.socket.remoteAddress ?? "",
+              address: client.req.socket.remoteAddress ?? "",
             });
-          });
+          };
+          client.onMessage$
+            .pipe(takeUntil(client.onClose$))
+            .subscribe(bridgeMessageHandler);
           input$
             .pipe(
-              takeUntil(onClose.pipe(take(1))),
               filter((sig) => !sig.msg.complete),
               tap((sig) => {
                 // eslint-disable-next-line @typescript-eslint/no-explicit-any, @typescript-eslint/ban-types
@@ -188,8 +193,35 @@ export function WebSocketHost(serviceName: string, wss: WebSocketServer) {
                   service: serviceName,
                   type: "socket",
                 });
-                obs
+                const hasAccess$ = sh
+                  .hasAccessTo(client.req, {
+                    serviceName,
+                    method: sig.msg.method,
+                    property: sig.msg.property,
+                  })
+                  .pipe(shareReplay(1), takeUntil(client.onClose$));
+                hasAccess$
                   .pipe(
+                    filter((c) => c),
+                    switchMap(() => obs),
+                    takeUntil(
+                      hasAccess$.pipe(
+                        filter((c) => !c),
+                        take(1)
+                      )
+                    ),
+                    takeUntil(
+                      input$.pipe(
+                        filter(
+                          (s) =>
+                            s.msg.id === sig.msg.id &&
+                            s.msg.complete &&
+                            sig.address === s.address
+                        ),
+                        take(1)
+                      )
+                    ),
+                    takeUntil(client.onClose$.pipe(take(1))),
                     tap({
                       complete: () => {
                         rxjsBridgeHealthMonitor.removeJoint(
@@ -198,29 +230,6 @@ export function WebSocketHost(serviceName: string, wss: WebSocketServer) {
                         );
                       },
                     }),
-                    share({ resetOnRefCountZero: true }),
-                    takeUntil(
-                      race([
-                        input$.pipe(
-                          filter(
-                            (s) =>
-                              s.msg.id === sig.msg.id &&
-                              s.msg.complete &&
-                              sig.address === s.address
-                          ),
-                          take(1)
-                        ),
-                        onClose.pipe(take(1)),
-                      ]).pipe(
-                        take(1),
-                        tap(() => {
-                          rxjsBridgeHealthMonitor.removeJoint(
-                            sig.msg.id,
-                            "socket"
-                          );
-                        })
-                      )
-                    ),
                     materialize()
                   )
                   .subscribe({
@@ -248,7 +257,8 @@ export function WebSocketHost(serviceName: string, wss: WebSocketServer) {
               })
             )
             .subscribe();
-        });
+        };
+        sh.clientConnection$.subscribe(clientConnectionHandler);
         super(...args);
       }
     };
