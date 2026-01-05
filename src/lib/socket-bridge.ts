@@ -113,31 +113,21 @@ export function WebSocketHost(serviceName: string, sh: IHostSocketHandler) {
               return;
             }
             if (msg.id === -1) {
-              sh.hasAccessTo(client.req, {
-                serviceName,
-              })
-                .pipe(take(1))
-                .subscribe((hasAccess) => {
-                  if (!hasAccess) {
-                    return;
-                  }
-                  client.socket.send(
-                    JSON.stringify({
-                      id: msg.id,
-                      data: {
-                        properties: Object.getOwnPropertyNames(this),
-                        methods: Object.getOwnPropertyNames(
-                          constructor.prototype
-                        ).filter(
-                          (p) =>
-                            !["constructor", "_bridgeConnected"].includes(p)
-                        ),
-                      },
-                      complete: true,
-                      service: serviceName,
-                    })
-                  );
-                });
+              client.socket.send(
+                JSON.stringify({
+                  id: msg.id,
+                  data: {
+                    properties: Object.getOwnPropertyNames(this),
+                    methods: Object.getOwnPropertyNames(
+                      constructor.prototype
+                    ).filter(
+                      (p) => !["constructor", "_bridgeConnected"].includes(p)
+                    ),
+                  },
+                  complete: true,
+                  service: serviceName,
+                })
+              );
               return;
             }
             _input$.next({
