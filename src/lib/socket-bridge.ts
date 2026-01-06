@@ -192,14 +192,7 @@ export function WebSocketHost(serviceName: string, sh: IHostSocketHandler) {
                   .pipe(shareReplay(1), takeUntil(client.onClose$));
                 hasAccess$
                   .pipe(
-                    filter((c) => c),
-                    switchMap(() => obs),
-                    takeUntil(
-                      hasAccess$.pipe(
-                        filter((c) => !c),
-                        take(1)
-                      )
-                    ),
+                    switchMap((hasAccess) => obs.pipe(filter(() => hasAccess))),
                     takeUntil(
                       input$.pipe(
                         filter(
@@ -367,7 +360,6 @@ export function SocketMethod() {
         target._bridgeConnected
           .pipe(
             filter((c) => c),
-            take(1),
             switchMap(() => target._output),
             takeUntil(
               race([
@@ -461,7 +453,6 @@ export function SocketObservable(...args: OperatorFunction<any, any>[]) {
       target._bridgeConnected
         .pipe(
           filter((c) => c),
-          take(1),
           switchMap(() => target._output),
           filter(
             (msg) =>
@@ -496,7 +487,6 @@ export function SocketObservable(...args: OperatorFunction<any, any>[]) {
           switchMap(() =>
             target._bridgeConnected.pipe(
               filter((c) => c),
-              take(1)
             )
           ),
           takeUntil(done$),
