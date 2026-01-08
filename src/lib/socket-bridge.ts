@@ -343,7 +343,7 @@ export function WebSocketBridge(wh: SocketHandler, serviceName: string) {
 }
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
-export function SocketMethod(...args: OperatorFunction<any, any>[]) {
+export function SocketMethod(...operators: OperatorFunction<any, any>[]) {
   return function <Args extends any[]>(
     target: RxjsBridge,
     method: string,
@@ -433,8 +433,8 @@ export function SocketMethod(...args: OperatorFunction<any, any>[]) {
           } as RxjsBridgeMessage);
         };
       });
-      if (args && args.length > 0) {
-        obs = obs.pipe(...(args as []));
+      if (operators && operators.length > 0) {
+        obs = obs.pipe(...(operators as []));
       }
       return obs;
     };
