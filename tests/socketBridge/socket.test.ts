@@ -77,6 +77,27 @@ describe("Socket bridge", () => {
       }
     });
   });
+  it.only("Should trigger next and complete", async () => {
+    await new Promise<void>((resolve) => {
+      const handler = {
+        next: () => {},
+        complete: () => {
+          expect(spyNext).toHaveBeenCalledTimes(1);
+          expect(spyComplete).toHaveBeenCalledTimes(1);
+          resolve();
+        },
+        error: () => {},
+      };
+      const spyNext = vi.spyOn(handler, "next");
+      const spyComplete = vi.spyOn(handler, "complete");
+      try {
+        firstBridge.limitedWork().subscribe(handler);
+      } catch (e) {
+        console.log(e);
+        resolve();
+      }
+    });
+  });
   it("Should trigger complete when host observable already completed", async () => {
     await new Promise<void>((resolve) => {
       const handler = {

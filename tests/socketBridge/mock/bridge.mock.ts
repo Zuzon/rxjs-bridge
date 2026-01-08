@@ -40,6 +40,10 @@ export class FirstTestServiceBridge extends FirstTestServiceBase {
   justComplete(): Observable<void> {
     throw new Error("Method not implemented.");
   }
+  @SocketMethod()
+  limitedWork(): Observable<number> {
+    throw new Error("Method not implemented.");
+  }
 }
 
 @WebSocketBridge(wsHandler, "second")

@@ -343,7 +343,7 @@ export function WebSocketBridge(wh: SocketHandler, serviceName: string) {
 }
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
-export function SocketMethod() {
+export function SocketMethod(...args: OperatorFunction<any, any>[]) {
   return function <Args extends any[]>(
     target: RxjsBridge,
     method: string,
@@ -354,9 +354,8 @@ export function SocketMethod() {
     target._bridgedMethods.push(method);
     descriptor.value = function (...args: Args) {
       const done$ = new Subject<void>();
-      return new Observable((observer) => {
+      let obs = new Observable((observer) => {
         const packetId = target._packetId++;
-
         target._bridgeConnected
           .pipe(
             filter((c) => c),
@@ -434,6 +433,10 @@ export function SocketMethod() {
           } as RxjsBridgeMessage);
         };
       });
+      if (args && args.length > 0) {
+        obs = obs.pipe(...(args as []));
+      }
+      return obs;
     };
     return descriptor;
   };

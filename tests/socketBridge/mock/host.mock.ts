@@ -38,6 +38,10 @@ export class FirstTestServiceHost extends FirstTestServiceBase {
   public alreadyCompleted(): Observable<any> {
     return this.alreadyCompletedSubject;
   }
+
+  public limitedWork(): Observable<number> {
+    return of(1).pipe(take(1));
+  }
 }
 
 @WebSocketHost('second', hostSocketHandler)
