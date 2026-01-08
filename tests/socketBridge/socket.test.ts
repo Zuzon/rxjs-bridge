@@ -77,7 +77,7 @@ describe("Socket bridge", () => {
       }
     });
   });
-  it.only("Should trigger next and complete", async () => {
+  it("Should trigger next and complete", async () => {
     await new Promise<void>((resolve) => {
       const handler = {
         next: () => {},
