@@ -205,6 +205,6 @@ describe("Worker bridge", () => {
     });
     process.off("uncaughtException", handler);
     expect(errors).toHaveLength(1);
-    expect(errors[0]).toBe("service non-existent is not connected");
+    expect(errors[0]).toBe("Timeout has occurred");
   }, 5200);
 });

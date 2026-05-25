@@ -17,7 +17,12 @@ import {
   of,
   switchMap,
 } from "rxjs";
-import { bridgedProp, RxjsBridge, RxjsBridgeMessage } from "./rxjsbridge";
+import {
+  BridgeConfig,
+  bridgedProp,
+  RxjsBridge,
+  RxjsBridgeMessage,
+} from "./rxjsbridge";
 import { rxjsBridgeHealthMonitor } from "./health.monitor";
 import { initRxBridgeProps } from "./utils";
 const registeredServices: string[] = [];
@@ -164,7 +169,13 @@ export function WorkerObservable(...args: OperatorFunction<any, any>[]) {
   };
 }
 
-export function WorkerBridge(worker: Worker, serviceName: string) {
+export function WorkerBridge(
+  worker: Worker,
+  serviceName: string,
+  config: BridgeConfig = {
+    syncTimeout: 15000,
+  },
+) {
   // eslint-disable-next-line @typescript-eslint/no-explicit-any, @typescript-eslint/ban-types
   return function <T extends { new (...args: any[]): RxjsBridge }>(
     constructor: T,
@@ -228,11 +239,7 @@ export function WorkerBridge(worker: Worker, serviceName: string) {
               (constructor.prototype as RxjsBridge)._bridgeConnected.pipe(
                 filter((c) => c),
                 take(1),
-                timeout(15000),
-                catchError(() => {
-                  throw new Error(`service ${serviceName} is not connected`);
-                  // critical, should be handled by developer
-                }),
+                timeout(config.syncTimeout),
               ),
             ),
           )
@@ -244,9 +251,6 @@ export function WorkerBridge(worker: Worker, serviceName: string) {
                 service: serviceName,
               } as RxjsBridgeMessage);
             },
-            error: (e) => {
-              console.error(e);
-            }
           });
         constructor.prototype._packetId = 0;
       }

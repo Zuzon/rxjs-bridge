@@ -23,6 +23,7 @@ import {
   timeout,
 } from "rxjs";
 import {
+  BridgeConfig,
   bridgedProp,
   RxjsBridge,
   RxjsBridgeMessage,
@@ -179,7 +180,7 @@ export function WebSocketHost(serviceName: string, sh: IHostSocketHandler) {
                   // eslint-disable-next-line @typescript-eslint/ban-ts-comment
                   // @ts-ignore
                   obs = this[sig.msg.property];
-                  if (!obs || !obs.pipe || typeof obs.pipe !== 'function') {
+                  if (!obs || !obs.pipe || typeof obs.pipe !== "function") {
                     sig.client.send(
                       JSON.stringify({
                         id: sig.msg.id,
@@ -268,7 +269,13 @@ export function WebSocketHost(serviceName: string, sh: IHostSocketHandler) {
   };
 }
 
-export function WebSocketBridge(wh: SocketHandler, serviceName: string) {
+export function WebSocketBridge(
+  wh: SocketHandler,
+  serviceName: string,
+  config: BridgeConfig = {
+    syncTimeout: 15000,
+  },
+) {
   // eslint-disable-next-line @typescript-eslint/no-explicit-any, @typescript-eslint/ban-types
   return function <T extends { new (...args: any[]): RxjsBridge }>(
     constructor: T,
@@ -340,13 +347,7 @@ export function WebSocketBridge(wh: SocketHandler, serviceName: string) {
                   (constructor.prototype as RxjsBridge)._bridgeConnected.pipe(
                     filter((c) => c),
                     take(1),
-                    timeout(15000),
-                    catchError(() => {
-                      throw new Error(
-                        `service ${serviceName} is not connected`,
-                      );
-                      // critical, should be handled by developer
-                    }),
+                    timeout(config.syncTimeout),
                   ),
                 ),
               ),
@@ -360,9 +361,6 @@ export function WebSocketBridge(wh: SocketHandler, serviceName: string) {
                 service: serviceName,
               } as RxjsBridgeMessage);
             },
-            error: (e) => {
-              console.error(e);
-            }
           });
         constructor.prototype._packetId = 0;
       }

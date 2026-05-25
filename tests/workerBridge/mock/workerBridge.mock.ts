@@ -37,7 +37,7 @@ export class WorkerBridgeFirstServiceMock extends ServiceBase {
   }
 }
 
-@WorkerBridge(worker as Worker, 'second')
+@WorkerBridge(worker as Worker, 'second', { syncTimeout: 100 })
 export class WorkerBridgeSecondServiceMock extends RxjsBridge {
   @WorkerMethod()
   public subject(): Observable<any> {
@@ -49,7 +49,7 @@ export class WorkerBridgeSecondServiceMock extends RxjsBridge {
   }
 }
 
-@WorkerBridge(worker as Worker, 'non-existent')
+@WorkerBridge(worker as Worker, 'non-existent', { syncTimeout: 100 })
 export class WorkerBridgeNonExistentServiceMock extends RxjsBridge {
   @WorkerMethod()
   public subject(): Observable<any> {

@@ -250,6 +250,6 @@ describe("Socket bridge", () => {
     process.off("uncaughtException", handler);
     console.log("should fail if service name incorrect or not exists", errors);
     expect(errors).toHaveLength(1);
-    expect(errors[0]).toBe("service non-existent is not connected");
+    expect(errors[0]).toBe("Timeout has occurred");
   }, 5200);
 });

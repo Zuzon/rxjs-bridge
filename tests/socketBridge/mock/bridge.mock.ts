@@ -46,7 +46,7 @@ export class FirstTestServiceBridge extends FirstTestServiceBase {
   }
 }
 
-@WebSocketBridge(wsHandler, "second")
+@WebSocketBridge(wsHandler, "second", { syncTimeout: 100 })
 export class SocketBridgeSecondServiceMock extends RxjsBridge {
   @SocketMethod()
   public subject(): Observable<any> {
@@ -58,13 +58,13 @@ export class SocketBridgeSecondServiceMock extends RxjsBridge {
   }
 }
 
-@WebSocketBridge(wsHandler, "third")
+@WebSocketBridge(wsHandler, "third", { syncTimeout: 100 })
 export class SocketBridgeThirdServiceMock extends RxjsBridge {
   @SocketObservable()
   public nonExistentSubject$!: Observable<void>;
 }
 
-@WebSocketBridge(wsHandler, "non-existent")
+@WebSocketBridge(wsHandler, "non-existent", { syncTimeout: 100 })
 export class SocketBridgeNonExistentServiceMock extends RxjsBridge {
   @SocketMethod()
   public subject(): Observable<any> {

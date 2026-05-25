@@ -35,3 +35,7 @@ export interface bridgedProp {
   operators: OperatorFunction<any, any>[];
   observable: Observable<unknown>;
 }
+
+export interface BridgeConfig {
+  syncTimeout: number;
+}
