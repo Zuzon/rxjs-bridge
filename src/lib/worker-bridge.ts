@@ -27,12 +27,13 @@ export function WorkerMethod() {
     target: RxjsBridge,
     method: string,
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    descriptor: TypedPropertyDescriptor<any>
+    descriptor: TypedPropertyDescriptor<any>,
   ) {
     initRxBridgeProps(target);
     target._bridgedMethods.push(method);
     descriptor.value = function (...args: Args) {
       return new Observable((observer) => {
+        const onDestroy$ = new Subject<void>();
         const packetId = target._packetId++;
         const res = target._bridgeConnected
           .pipe(
@@ -43,10 +44,11 @@ export function WorkerMethod() {
               (msg) =>
                 msg.id === packetId &&
                 msg.method === method &&
-                msg.service === target._serviceName
+                msg.service === target._serviceName,
             ),
             map((msg) => msg.data),
-            dematerialize()
+            dematerialize(),
+            takeUntil(onDestroy$),
           )
           .subscribe({
             next: (data) => {
@@ -70,7 +72,8 @@ export function WorkerMethod() {
                 service: target._serviceName,
               } as RxjsBridgeMessage);
               return res;
-            })
+            }),
+            takeUntil(onDestroy$),
           )
           .subscribe();
 
@@ -81,6 +84,8 @@ export function WorkerMethod() {
             complete: true,
             service: target._serviceName,
           } as RxjsBridgeMessage);
+          onDestroy$.next();
+          onDestroy$.complete();
         };
       });
     };
@@ -97,6 +102,7 @@ export function WorkerObservable(...args: OperatorFunction<any, any>[]) {
       observable: of(),
     };
     let obs = new Observable((observer) => {
+      const onDestroy$ = new Subject<void>();
       const packetId = target._packetId++;
       target._bridgeConnected
         .pipe(
@@ -107,12 +113,13 @@ export function WorkerObservable(...args: OperatorFunction<any, any>[]) {
             (msg) =>
               msg.id === packetId &&
               msg.property === propertyKey &&
-              msg.service === target._serviceName
+              msg.service === target._serviceName,
           ),
           map((msg) => {
             return msg.data;
           }),
-          dematerialize()
+          dematerialize(),
+          takeUntil(onDestroy$),
         )
         .subscribe({
           next: (data) => {
@@ -127,7 +134,8 @@ export function WorkerObservable(...args: OperatorFunction<any, any>[]) {
       target._bridgeConnected
         .pipe(
           filter((c) => c),
-          take(1)
+          take(1),
+          takeUntil(onDestroy$),
         )
         .subscribe(() => {
           target._worker.postMessage({
@@ -140,10 +148,12 @@ export function WorkerObservable(...args: OperatorFunction<any, any>[]) {
       return () => {
         target._worker.postMessage({
           id: packetId,
-          method: propertyKey,
+          property: propertyKey,
           complete: true,
           service: target._serviceName,
         } as RxjsBridgeMessage);
+        onDestroy$.next();
+        onDestroy$.complete();
       };
     });
     if (args && args.length > 0) {
@@ -157,7 +167,7 @@ export function WorkerObservable(...args: OperatorFunction<any, any>[]) {
 export function WorkerBridge(worker: Worker, serviceName: string) {
   // eslint-disable-next-line @typescript-eslint/no-explicit-any, @typescript-eslint/ban-types
   return function <T extends { new (...args: any[]): RxjsBridge }>(
-    constructor: T
+    constructor: T,
   ): T | void {
     return class extends constructor {
       constructor(...args: any[]) {
@@ -167,7 +177,7 @@ export function WorkerBridge(worker: Worker, serviceName: string) {
         initRxBridgeProps(constructor.prototype);
         const _output = new Subject<RxjsBridgeMessage>();
         constructor.prototype._output = _output.pipe(
-          share({ resetOnRefCountZero: true })
+          share({ resetOnRefCountZero: true }),
         );
         constructor.prototype._bridgedProperties.map((p: bridgedProp) => {
           // eslint-disable-next-line @typescript-eslint/ban-ts-comment
@@ -180,13 +190,15 @@ export function WorkerBridge(worker: Worker, serviceName: string) {
             return;
           }
           if (msg.id === -1) {
+            let hasErrors = false;
             constructor.prototype._bridgedMethods.map((m: string) => {
               if (!(msg.data.methods as string[]).includes(m)) {
                 constructor.prototype._bridgeConnected.error(
                   new Error(
-                    `Method ${m} is not supported by service: ${serviceName}`
-                  )
+                    `Method ${m} is not supported by service: ${serviceName}`,
+                  ),
                 );
+                hasErrors = true;
                 return;
               }
             });
@@ -194,13 +206,16 @@ export function WorkerBridge(worker: Worker, serviceName: string) {
               if (!(msg.data.properties as string[]).includes(p.key)) {
                 constructor.prototype._bridgeConnected.error(
                   new Error(
-                    `Property ${p.key} is not supported by service: ${serviceName}`
-                  )
+                    `Property ${p.key} is not supported by service: ${serviceName}`,
+                  ),
                 );
+                hasErrors = true;
                 return;
               }
             });
-            constructor.prototype._bridgeConnected.next(true);
+            if (!hasErrors) {
+              constructor.prototype._bridgeConnected.next(true);
+            }
             return;
           }
           _output.next(msg);
@@ -213,22 +228,25 @@ export function WorkerBridge(worker: Worker, serviceName: string) {
               (constructor.prototype as RxjsBridge)._bridgeConnected.pipe(
                 filter((c) => c),
                 take(1),
-                timeout(5000),
-                catchError((err) => {
-                  if (err.message.includes("Timeout")) {
-                    throw new Error(`service ${serviceName} is not connected`);
-                  }
-                  throw err;
-                })
-              )
-            )
+                timeout(15000),
+                catchError(() => {
+                  throw new Error(`service ${serviceName} is not connected`);
+                  // critical, should be handled by developer
+                }),
+              ),
+            ),
           )
-          .subscribe(() => {
-            constructor.prototype._worker.postMessage({
-              id: -1,
-              complete: true,
-              service: serviceName,
-            } as RxjsBridgeMessage);
+          .subscribe({
+            next: () => {
+              constructor.prototype._worker.postMessage({
+                id: -1,
+                complete: true,
+                service: serviceName,
+              } as RxjsBridgeMessage);
+            },
+            error: (e) => {
+              console.error(e);
+            }
           });
         constructor.prototype._packetId = 0;
       }
@@ -238,7 +256,7 @@ export function WorkerBridge(worker: Worker, serviceName: string) {
 export function WorkerHost(serviceName: string) {
   // eslint-disable-next-line @typescript-eslint/no-explicit-any, @typescript-eslint/ban-types
   return function <T extends { new (...args: any[]): {} }>(
-    constructor: T
+    constructor: T,
   ): T | void {
     return class extends constructor {
       constructor(...args: any[]) {
@@ -254,7 +272,7 @@ export function WorkerHost(serviceName: string) {
           super(...args);
           console.warn(
             "addEventListener is not available in this environment",
-            serviceName
+            serviceName,
           );
           return;
         }
@@ -270,9 +288,9 @@ export function WorkerHost(serviceName: string) {
               data: {
                 properties: Object.getOwnPropertyNames(this),
                 methods: Object.getOwnPropertyNames(
-                  constructor.prototype
+                  constructor.prototype,
                 ).filter(
-                  (p) => !["constructor", "_bridgeConnected"].includes(p)
+                  (p) => !["constructor", "_bridgeConnected"].includes(p),
                 ),
               },
               complete: true,
@@ -309,7 +327,7 @@ export function WorkerHost(serviceName: string) {
                   obs = this[msg.method](...msg.data) as Observable<any>;
                 } catch (err) {
                   const errJson = JSON.parse(
-                    JSON.stringify(err, Object.getOwnPropertyNames(err))
+                    JSON.stringify(err, Object.getOwnPropertyNames(err)),
                   );
                   postMessage({
                     id: msg.id,
@@ -325,9 +343,30 @@ export function WorkerHost(serviceName: string) {
                   return;
                 }
               } else {
-                // eslint-disable-next-line @typescript-eslint/ban-ts-comment
-                // @ts-ignore
-                obs = this[msg.property];
+                try {
+                  // eslint-disable-next-line @typescript-eslint/ban-ts-comment
+                  // @ts-ignore
+                  obs = this[msg.property];
+                  if (!obs.pipe || typeof obs.pipe !== "function") {
+                    throw new Error("property not found");
+                  }
+                } catch (err) {
+                  const errJson = JSON.parse(
+                    JSON.stringify(err, Object.getOwnPropertyNames(err)),
+                  );
+                  postMessage({
+                    id: msg.id,
+                    method: msg.method,
+                    property: msg.property,
+                    data: {
+                      kind: "E",
+                      error: errJson,
+                    },
+                    complete: true,
+                    service: serviceName,
+                  } as RxjsBridgeMessage);
+                  return;
+                }
               }
 
               rxjsBridgeHealthMonitor.addJoint({
@@ -345,10 +384,10 @@ export function WorkerHost(serviceName: string) {
                       take(1),
                       tap(() => {
                         rxjsBridgeHealthMonitor.removeJoint(msg.id, "worker");
-                      })
-                    )
+                      }),
+                    ),
                   ),
-                  materialize()
+                  materialize(),
                 )
                 .subscribe({
                   next: (data) => {
@@ -356,8 +395,8 @@ export function WorkerHost(serviceName: string) {
                       (data.error as any) = JSON.parse(
                         JSON.stringify(
                           data.error,
-                          Object.getOwnPropertyNames(data.error)
-                        )
+                          Object.getOwnPropertyNames(data.error),
+                        ),
                       );
                     }
                     postMessage({
@@ -380,7 +419,7 @@ export function WorkerHost(serviceName: string) {
                     } as RxjsBridgeMessage);
                   },
                 });
-            })
+            }),
           )
           .subscribe({
             error: (err) => {

@@ -61,7 +61,11 @@ export class WebSocketHandler extends SocketHandler {
       }, 500);
     });
     this._ws.addEventListener("message", (msg) => {
-      this._input$.next(JSON.parse(msg.data));
+      try {
+        this._input$.next(JSON.parse(msg.data));
+      } catch (e) {
+        console.error("rxjs-bridge: Malformed data received", e);
+      }
     });
   }
   private _send(msg: RxjsBridgeMessage): void {
@@ -92,7 +96,7 @@ export class WebSocketHandler extends SocketHandler {
 export function WebSocketHost(serviceName: string, sh: IHostSocketHandler) {
   // eslint-disable-next-line @typescript-eslint/no-explicit-any, @typescript-eslint/ban-types
   return function <T extends { new (...args: any[]): {} }>(
-    constructor: T
+    constructor: T,
   ): T | void {
     return class extends constructor {
       constructor(...args: any[]) {
@@ -106,7 +110,7 @@ export function WebSocketHost(serviceName: string, sh: IHostSocketHandler) {
           const _input$ = new Subject<WsRxSignal>();
           const input$ = _input$.pipe(
             share({ resetOnRefCountZero: true }),
-            takeUntil(client.onClose$)
+            takeUntil(client.onClose$),
           );
           const bridgeMessageHandler = (msg: RxjsBridgeMessage) => {
             if (msg.service !== serviceName) {
@@ -119,14 +123,14 @@ export function WebSocketHost(serviceName: string, sh: IHostSocketHandler) {
                   data: {
                     properties: Object.getOwnPropertyNames(this),
                     methods: Object.getOwnPropertyNames(
-                      constructor.prototype
+                      constructor.prototype,
                     ).filter(
-                      (p) => !["constructor", "_bridgeConnected"].includes(p)
+                      (p) => !["constructor", "_bridgeConnected"].includes(p),
                     ),
                   },
                   complete: true,
                   service: serviceName,
-                })
+                }),
               );
               return;
             }
@@ -150,11 +154,11 @@ export function WebSocketHost(serviceName: string, sh: IHostSocketHandler) {
                     // eslint-disable-next-line @typescript-eslint/ban-ts-comment
                     // @ts-ignore
                     obs = this[sig.msg.method](
-                      ...sig.msg.data
+                      ...sig.msg.data,
                     ) as Observable<any>;
                   } catch (err) {
                     const errJson = JSON.parse(
-                      JSON.stringify(err, Object.getOwnPropertyNames(err))
+                      JSON.stringify(err, Object.getOwnPropertyNames(err)),
                     );
                     sig.client.send(
                       JSON.stringify({
@@ -167,7 +171,7 @@ export function WebSocketHost(serviceName: string, sh: IHostSocketHandler) {
                         },
                         complete: false,
                         service: serviceName,
-                      })
+                      }),
                     );
                     return;
                   }
@@ -175,6 +179,22 @@ export function WebSocketHost(serviceName: string, sh: IHostSocketHandler) {
                   // eslint-disable-next-line @typescript-eslint/ban-ts-comment
                   // @ts-ignore
                   obs = this[sig.msg.property];
+                  if (!obs || !obs.pipe || typeof obs.pipe !== 'function') {
+                    sig.client.send(
+                      JSON.stringify({
+                        id: sig.msg.id,
+                        method: sig.msg.method,
+                        property: sig.msg.property,
+                        data: {
+                          kind: "E",
+                          error: `Observable ${sig.msg.property} not found`,
+                        },
+                        complete: false,
+                        service: serviceName,
+                      }),
+                    );
+                    return;
+                  }
                 }
                 rxjsBridgeHealthMonitor.addJoint({
                   id: sig.msg.id,
@@ -199,21 +219,21 @@ export function WebSocketHost(serviceName: string, sh: IHostSocketHandler) {
                           (s) =>
                             s.msg.id === sig.msg.id &&
                             s.msg.complete &&
-                            sig.address === s.address
+                            sig.address === s.address,
                         ),
-                        take(1)
-                      )
+                        take(1),
+                      ),
                     ),
                     takeUntil(client.onClose$.pipe(take(1))),
+                    materialize(),
                     tap({
                       complete: () => {
                         rxjsBridgeHealthMonitor.removeJoint(
                           sig.msg.id,
-                          "socket"
+                          "socket",
                         );
                       },
                     }),
-                    materialize()
                   )
                   .subscribe({
                     next: (data) => {
@@ -221,8 +241,8 @@ export function WebSocketHost(serviceName: string, sh: IHostSocketHandler) {
                         (data.error as any) = JSON.parse(
                           JSON.stringify(
                             data.error,
-                            Object.getOwnPropertyNames(data.error)
-                          )
+                            Object.getOwnPropertyNames(data.error),
+                          ),
                         );
                       }
                       sig.client.send(
@@ -233,11 +253,11 @@ export function WebSocketHost(serviceName: string, sh: IHostSocketHandler) {
                           data,
                           complete: false,
                           service: serviceName,
-                        })
+                        }),
                       );
                     },
                   });
-              })
+              }),
             )
             .subscribe();
         };
@@ -251,7 +271,7 @@ export function WebSocketHost(serviceName: string, sh: IHostSocketHandler) {
 export function WebSocketBridge(wh: SocketHandler, serviceName: string) {
   // eslint-disable-next-line @typescript-eslint/no-explicit-any, @typescript-eslint/ban-types
   return function <T extends { new (...args: any[]): RxjsBridge }>(
-    constructor: T
+    constructor: T,
   ): T | void {
     return class extends constructor {
       constructor(...args: any[]) {
@@ -261,7 +281,7 @@ export function WebSocketBridge(wh: SocketHandler, serviceName: string) {
         initRxBridgeProps(constructor.prototype);
         const _output = new Subject<RxjsBridgeMessage>();
         constructor.prototype._output = _output.pipe(
-          share({ resetOnRefCountZero: true })
+          share({ resetOnRefCountZero: true }),
         );
         constructor.prototype._bridgedProperties.map((p: bridgedProp) => {
           // eslint-disable-next-line @typescript-eslint/ban-ts-comment
@@ -273,13 +293,15 @@ export function WebSocketBridge(wh: SocketHandler, serviceName: string) {
           .subscribe({
             next: (msg: RxjsBridgeMessage) => {
               if (msg.id === -1) {
+                let hasErrors = false;
                 constructor.prototype._bridgedMethods.map((m: string) => {
                   if (!(msg.data.methods as string[]).includes(m)) {
                     constructor.prototype._bridgeConnected.error(
                       new Error(
-                        `Method ${m} is not supported by service: ${serviceName}`
-                      )
+                        `Method ${m} is not supported by service: ${serviceName}`,
+                      ),
                     );
+                    hasErrors = true;
                     return;
                   }
                 });
@@ -288,14 +310,17 @@ export function WebSocketBridge(wh: SocketHandler, serviceName: string) {
                     if (!(msg.data.properties as string[]).includes(p.key)) {
                       constructor.prototype._bridgeConnected.error(
                         new Error(
-                          `Property ${p.key} is not supported by service: ${serviceName}`
-                        )
+                          `Property ${p.key} is not supported by service: ${serviceName}`,
+                        ),
                       );
+                      hasErrors = true;
                       return;
                     }
-                  }
+                  },
                 );
-                constructor.prototype._bridgeConnected.next(true);
+                if (!hasErrors) {
+                  constructor.prototype._bridgeConnected.next(true);
+                }
                 return;
               }
               _output.next(msg);
@@ -315,26 +340,29 @@ export function WebSocketBridge(wh: SocketHandler, serviceName: string) {
                   (constructor.prototype as RxjsBridge)._bridgeConnected.pipe(
                     filter((c) => c),
                     take(1),
-                    timeout(5000),
-                    catchError((err) => {
-                      if (err.message.includes("Timeout")) {
-                        throw new Error(
-                          `service ${serviceName} is not connected`
-                        );
-                      }
-                      throw err;
-                    })
-                  )
-                )
-              )
-            )
+                    timeout(15000),
+                    catchError(() => {
+                      throw new Error(
+                        `service ${serviceName} is not connected`,
+                      );
+                      // critical, should be handled by developer
+                    }),
+                  ),
+                ),
+              ),
+            ),
           )
-          .subscribe(() => {
-            (constructor.prototype._sh as SocketHandler).send({
-              id: -1,
-              complete: true,
-              service: serviceName,
-            } as RxjsBridgeMessage);
+          .subscribe({
+            next: () => {
+              (constructor.prototype._sh as SocketHandler).send({
+                id: -1,
+                complete: true,
+                service: serviceName,
+              } as RxjsBridgeMessage);
+            },
+            error: (e) => {
+              console.error(e);
+            }
           });
         constructor.prototype._packetId = 0;
       }
@@ -348,13 +376,13 @@ export function SocketMethod(...operators: OperatorFunction<any, any>[]) {
     target: RxjsBridge,
     method: string,
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    descriptor: TypedPropertyDescriptor<any>
+    descriptor: TypedPropertyDescriptor<any>,
   ) {
     initRxBridgeProps(target);
     target._bridgedMethods.push(method);
     descriptor.value = function (...args: Args) {
-      const done$ = new Subject<void>();
       let obs = new Observable((observer) => {
+        const done$ = new Subject<void>();
         const packetId = target._packetId++;
         target._bridgeConnected
           .pipe(
@@ -366,27 +394,27 @@ export function SocketMethod(...operators: OperatorFunction<any, any>[]) {
                   distinctUntilChanged(),
                   filter((c) => !c),
                   skip(1),
-                  take(1)
+                  take(1),
                 ),
                 target._output.pipe(
                   filter(
                     (msg) =>
                       msg.id === packetId &&
                       msg.method === method &&
-                      msg.complete
-                  )
+                      msg.complete,
+                  ),
                 ),
-              ])
+              ]),
             ),
             filter(
               (msg) =>
                 msg.id === packetId &&
                 msg.method === method &&
                 !msg.complete &&
-                msg.service === target._serviceName
+                msg.service === target._serviceName,
             ),
             map((msg) => msg.data),
-            dematerialize()
+            dematerialize(),
           )
           .subscribe({
             next: (data) => observer.next(data),
@@ -408,8 +436,8 @@ export function SocketMethod(...operators: OperatorFunction<any, any>[]) {
             switchMap(() =>
               target._bridgeConnected.pipe(
                 filter((c) => c),
-                take(1)
-              )
+                take(1),
+              ),
             ),
             takeUntil(done$),
             map(() => {
@@ -419,9 +447,15 @@ export function SocketMethod(...operators: OperatorFunction<any, any>[]) {
                 method,
                 service: target._serviceName,
               } as RxjsBridgeMessage);
-            })
+            }),
           )
-          .subscribe();
+          .subscribe({
+            error: (err) => {
+              observer.error(err);
+              done$.next();
+              done$.complete();
+            },
+          });
         return () => {
           done$.next();
           done$.complete();
@@ -450,8 +484,8 @@ export function SocketObservable(...args: OperatorFunction<any, any>[]) {
       operators: args,
       observable: of(),
     };
-    const done$ = new Subject<void>();
     let obs = new Observable((observer) => {
+      const done$ = new Subject<void>();
       const packetId = target._packetId++;
       target._bridgeConnected
         .pipe(
@@ -461,12 +495,13 @@ export function SocketObservable(...args: OperatorFunction<any, any>[]) {
             (msg) =>
               msg.id === packetId &&
               msg.property === propertyKey &&
-              msg.service === target._serviceName
+              msg.service === target._serviceName,
           ),
           map((msg) => {
             return msg.data;
           }),
-          dematerialize()
+          dematerialize(),
+          takeUntil(done$),
         )
         .subscribe({
           next: (data) => {
@@ -490,7 +525,8 @@ export function SocketObservable(...args: OperatorFunction<any, any>[]) {
           switchMap(() =>
             target._bridgeConnected.pipe(
               filter((c) => c),
-            )
+              take(1),
+            ),
           ),
           takeUntil(done$),
           map(() => {
@@ -499,7 +535,7 @@ export function SocketObservable(...args: OperatorFunction<any, any>[]) {
               property: propertyKey,
               service: target._serviceName,
             } as RxjsBridgeMessage);
-          })
+          }),
         )
         .subscribe();
 
@@ -508,7 +544,7 @@ export function SocketObservable(...args: OperatorFunction<any, any>[]) {
         done$.complete();
         target._sh.send({
           id: packetId,
-          method: propertyKey,
+          property: propertyKey,
           complete: true,
           service: target._serviceName,
         } as RxjsBridgeMessage);

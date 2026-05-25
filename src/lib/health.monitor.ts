@@ -29,10 +29,11 @@ class RxjsBridgeHealth {
             _total: 0,
           };
         }
-        if (!result.socketServiceJoints[joint.service][joint.method]) {
-          result.socketServiceJoints[joint.service][joint.method] = 1;
+        const socketKey = joint.method || joint.property;
+        if (!result.socketServiceJoints[joint.service][socketKey]) {
+          result.socketServiceJoints[joint.service][socketKey] = 1;
         } else {
-          result.socketServiceJoints[joint.service][joint.method]++;
+          result.socketServiceJoints[joint.service][socketKey]++;
         }
         result.socketServiceJoints[joint.service]._total++;
       } else if (joint.type === 'worker') {
@@ -42,10 +43,11 @@ class RxjsBridgeHealth {
             _total: 0,
           };
         }
-        if (!result.workerServiceJoints[joint.service][joint.method]) {
-          result.workerServiceJoints[joint.service][joint.method] = 1;
+        const workerKey = joint.method || joint.property;
+        if (!result.workerServiceJoints[joint.service][workerKey]) {
+          result.workerServiceJoints[joint.service][workerKey] = 1;
         } else {
-          result.workerServiceJoints[joint.service][joint.method]++;
+          result.workerServiceJoints[joint.service][workerKey]++;
         }
         result.workerServiceJoints[joint.service]._total++;
       }
