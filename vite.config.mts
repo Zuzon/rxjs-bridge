@@ -25,6 +25,7 @@ export default function ({mode}: { mode: 'development' | 'production' }) {
             outDir: path.resolve(__dirname, './lib'),
             sourcemap: true,
             rollupOptions: {
+                external: ['worker_threads', 'node:worker_threads', 'ws'],
                 output: {
                     entryFileNames: `rxjs-bridge.[format].js`,
                     assetFileNames: `[name][extname]`,

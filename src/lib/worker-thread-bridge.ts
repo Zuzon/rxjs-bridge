@@ -24,7 +24,9 @@ import {
 } from "./rxjsbridge";
 import { rxjsBridgeHealthMonitor } from "./health.monitor";
 import { initRxBridgeProps } from "./utils";
-import { Worker, parentPort } from "worker_threads";
+import type { Worker } from "worker_threads";
+import * as nodeWorkerThreads from "worker_threads";
+const { parentPort } = nodeWorkerThreads;
 const registeredServices: string[] = [];
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 export function WorkerThreadMethod() {
@@ -195,8 +197,7 @@ export function WorkerThreadBridge(
           // @ts-ignore
           this[p.key] = p.observable;
         });
-        const listener = (ev: MessageEvent) => {
-          const msg = ev.data as RxjsBridgeMessage;
+        const listener = (msg: RxjsBridgeMessage) => {
           if (msg.service !== serviceName) {
             return;
           }
@@ -283,9 +284,7 @@ export function WorkerThreadHost(serviceName: string) {
           );
           return;
         }
-        parentPort.on("message", (event) => {
-          const msg = event.data as RxjsBridgeMessage;
-
+        parentPort.on("message", (msg: RxjsBridgeMessage) => {
           if (msg.service !== serviceName) {
             return;
           }
