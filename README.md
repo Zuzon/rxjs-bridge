@@ -158,5 +158,35 @@ service.info$.subscribe((result) => {
 ### web sockets
 WIP
 
+### message ports
+`WebSocketHost` / `WebSocketBridge` also run over message ports, e.g. between an Electron
+main process (`MessageChannelMain`) and a renderer or web worker. Messages are JSON strings.
+
+Host: adapt each new port to a `PortConnection` and pass it to `PortHostSocketHandler.connect()`.
+```ts
+const portHost = new PortHostSocketHandler();
+new (WebSocketHost('my-service', portHost)(MyServiceImpl))();
+
+const { port1, port2 } = new MessageChannelMain();
+portHost.connect({
+  send: (data) => port1.postMessage(data),
+  message$: fromEvent<MessageEvent>(port1, 'message').pipe(map((e) => e.data)),
+  close$: fromEvent(port1, 'close'),
+  address: 'renderer:1',
+});
+port1.start();
+// transfer port2 to the client
+```
+
+Client: wrap the received `MessagePort`.
+```ts
+const handler = new MessagePortHandler(port);
+handler.start();
+
+@WebSocketBridge(handler, 'my-service')
+class MyServiceBridge extends MyServiceBase { /* @SocketObservable / @SocketMethod stubs */ }
+```
+A closed port does not reconnect; the host hands out a new port instead.
+
 ## Demos
 Webworkers: Minimalistic Vite+React project https://github.com/Zuzon/rxjs-bridge-worker-demo

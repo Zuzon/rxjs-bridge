@@ -1,6 +1,6 @@
 import { Subject, Observable, BehaviorSubject, OperatorFunction } from "rxjs";
-import { WebSocket } from 'ws';
 import type { SocketHandler } from "./socketHandler";
+import type { BridgeSocket } from "./IhostSocketHandler";
 
 export class RxjsBridge {
   public _worker!: Worker;
@@ -26,7 +26,7 @@ export interface RxjsBridgeMessage {
 
 export interface WsRxSignal {
   msg: RxjsBridgeMessage;
-  client: WebSocket;
+  client: BridgeSocket;
   address: string;
 }
 

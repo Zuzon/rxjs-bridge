@@ -6,7 +6,7 @@ import { RxjsBridgeMessage } from "./rxjsbridge";
 
 export class HostSocketHandler {
   public hasAccessTo(
-    req: IncomingMessage,
+    req: IncomingMessage | undefined,
     api: ApiAccessParams
   ): Observable<boolean> {
     return of(true).pipe(shareReplay(1));
@@ -21,6 +21,7 @@ export class HostSocketHandler {
       this._clientConnection$.next({
         socket,
         req,
+        address: req.socket.remoteAddress ?? "",
         onClose$: onClose$.pipe(share({ resetOnRefCountZero: true })),
         onMessage$: onMessage$.pipe(share({ resetOnRefCountZero: true })),
       });

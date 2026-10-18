@@ -138,7 +138,7 @@ export function WebSocketHost(serviceName: string, sh: IHostSocketHandler) {
             _input$.next({
               client: client.socket,
               msg,
-              address: client.req.socket.remoteAddress ?? "",
+              address: client.address,
             });
           };
           client.onMessage$
