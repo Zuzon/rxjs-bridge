@@ -70,11 +70,18 @@ function createEchoBridge(handler: MessagePortHandler): EchoServiceBase {
   return new EchoServiceBridge();
 }
 
+const sentAfterClose: string[] = [];
+
 /** What a hosting app does with each new port, e.g. Electron's MessagePortMain. */
 function connectClient(address: string) {
   const { port1, port2 } = new MessageChannel();
+  let closed = false;
+  port1.addEventListener("close", () => (closed = true));
   const conn: PortConnection = {
-    send: (data) => port1.postMessage(data),
+    send: (data) => {
+      if (closed) sentAfterClose.push(data);
+      port1.postMessage(data);
+    },
     message$: fromEvent<MessageEvent>(port1, "message").pipe(map((e) => e.data)),
     close$: fromEvent(port1, "close"),
     address,
@@ -121,5 +128,6 @@ describe("Message port bridge", () => {
     handler.close();
     await stopped;
     expect(await connected).toBe(false);
+    expect(sentAfterClose).toEqual([]);
   });
 });

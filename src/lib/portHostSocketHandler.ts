@@ -49,14 +49,17 @@ export class PortHostSocketHandler implements IHostSocketHandler {
   public connect(conn: PortConnection): void {
     const onClose$ = new ReplaySubject<void>(1);
     const onMessage$ = new Subject<RxjsBridgeMessage>();
+    let closed = false;
     // Announce first so the hosts listen before any message is forwarded.
     this._clientConnection$.next({
-      socket: { send: (data) => conn.send(data) },
+      // Hosts still report completions while tearing down; the port is gone by then.
+      socket: { send: (data) => !closed && conn.send(data) },
       address: conn.address,
       onClose$: onClose$.asObservable(),
       onMessage$: onMessage$.asObservable(),
     });
     conn.close$.pipe(take(1)).subscribe(() => {
+      closed = true;
       onClose$.next();
       onClose$.complete();
       onMessage$.complete();
